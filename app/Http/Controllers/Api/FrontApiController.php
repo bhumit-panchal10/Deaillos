@@ -169,7 +169,7 @@ class FrontApiController extends Controller
                 "Categories_id",
                 "Category_name",
                 "Categories_slug"
-            )->orderby('isequence','asc')->get();
+            )->orderby('isequence', 'asc')->get();
 
             return response()->json([
                 'message' => 'successfully categories fetched...',
@@ -191,8 +191,8 @@ class FrontApiController extends Controller
         ]);
 
         try {
-            $category = Categories::where('Categories_slug',$request->CategorySlugname)->first();
-            $subcategories = SubCategories::select('iSubCategoryId', 'strSubCategoryName')
+            $category = Categories::where('Categories_slug', $request->CategorySlugname)->first();
+            $subcategories = SubCategories::select('iSubCategoryId', 'strSubCategoryName', 'strSlugName')
                 ->where('iCategoryId', $category->Categories_id)
                 ->get();
 
@@ -300,8 +300,8 @@ class FrontApiController extends Controller
             ], 500);
         }
     }
-    
-    
+
+
     public function dealimagedelete(Request $request)
     {
         try {
@@ -742,7 +742,7 @@ class FrontApiController extends Controller
 
                 ]);
             }
-            
+
             // Check if the Deals_id is provided in the request
             if ($request->has('Deals_id') && $request->Deals_id) {
                 // Check if the deal exists by Deals_id
@@ -1620,7 +1620,7 @@ class FrontApiController extends Controller
     //                  if ($request->filled('deal_address')) {
     //                     $q->where('deal_address', 'like', '%' . $request->deal_address . '%');
     //                 }
-                   
+
     //             });
     //         }
 
@@ -1630,7 +1630,7 @@ class FrontApiController extends Controller
     //                 $q->where('vendorcity', '=', $request->city);
     //             });
     //         }
-            
+
     //          // Filter by category
     //         if ($request->filled('category_id')) {
     //             $query->whereHas('vendor', function ($q) use ($request) {
@@ -1696,7 +1696,7 @@ class FrontApiController extends Controller
     //         $deals = $query->get();
     //         //$deals = $query->tosql();
     //         //dd($deals);
-            
+
     //         $popularDeals = Deals::with(['options', 'images', 'vendor', 'reviews'])
     //         ->withCount('reviews as total_reviews')
     //         ->withAvg('reviews as average_rating', 'review')
@@ -1748,14 +1748,14 @@ class FrontApiController extends Controller
     //         ], 500);
     //     }
     // }
-    
+
     public function Dealsearch(Request $request)
     {
         try {
             // Get user location if logged in
-          
-           $now = Carbon::now();
-    
+
+            $now = Carbon::now();
+
             // Build base query
             $query = Deals::with([
                 'options',
@@ -1763,20 +1763,20 @@ class FrontApiController extends Controller
                 'category',
                 'subcategory',
                 'vendor' => function ($q) {
-                    $q->select('vendor_id', 'vendoraddress', 'latitude', 'longitude', 'vendorcity', 'businessname','businessaddress');
+                    $q->select('vendor_id', 'vendoraddress', 'latitude', 'longitude', 'vendorcity', 'businessname', 'businessaddress');
                 },
                 'reviews'
             ])
-            ->withCount('reviews as total_reviews')
-            ->withAvg('reviews as average_rating', 'review')
-            ->whereHas('vendor', function ($q) {
-                $q->whereNotNull('latitude')->whereNotNull('longitude');
-            })
-            //->where('display_end_date', '>=', $now)
-            ->where('Is_publish', 1);
-    
+                ->withCount('reviews as total_reviews')
+                ->withAvg('reviews as average_rating', 'review')
+                ->whereHas('vendor', function ($q) {
+                    $q->whereNotNull('latitude')->whereNotNull('longitude');
+                })
+                //->where('display_end_date', '>=', $now)
+                ->where('Is_publish', 1);
+
             // Search filters
-            if ($request->filled('Title') || $request->filled('businessname') || $request->filled('deal_address') || $request->filled('category_slug') || $request->filled('subcategory_slug') ) {
+            if ($request->filled('Title') || $request->filled('businessname') || $request->filled('deal_address') || $request->filled('category_slug') || $request->filled('subcategory_slug')) {
                 $query->where(function ($q) use ($request) {
                     if ($request->filled('Title')) {
                         $q->where('main_title', 'like', '%' . $request->Title . '%');
@@ -1789,8 +1789,8 @@ class FrontApiController extends Controller
                     if ($request->filled('deal_address')) {
                         $q->where('deal_address', 'like', '%' . $request->deal_address . '%');
                     }
-                    
-                     // CATEGORY SLUG SEARCH
+
+                    // CATEGORY SLUG SEARCH
                     if ($request->filled('category_slug')) {
                         $q->orWhereHas('category', function ($q2) use ($request) {
                             $q2->where('Categories_slug', $request->category_slug);
@@ -1803,8 +1803,8 @@ class FrontApiController extends Controller
                             $q3->where('strSlugName', $request->subcategory_slug);
                         });
                     }
-                    
-                    
+
+
                     // if ($request->category_id) {
                     //     $q->where('deal_category_id', $request->category_id);
                     // }
@@ -1814,40 +1814,40 @@ class FrontApiController extends Controller
 
                 });
             }
-    
+
             // City filter
             if ($request->filled('city')) {
                 $query->whereHas('vendor', function ($q) use ($request) {
                     $q->where('vendorcity', '=', $request->city);
                 });
             }
-    
-    
+
+
             // Distance Matrix logic
             $vendorDistanceMap = [];
             $vendorTextMap = [];
-            
-            
+
+
             $customerLat = $request->lat;
             $customerLong = $request->long;
             if (($request->filled('lat') && $request->filled('long')) || ($customerLat && $customerLong)) {
                 $strUserLat = $request->filled('lat') ? $request->lat : $customerLat;
-                
+
                 $strUserLong = $request->filled('long') ? $request->long : $customerLong;
-    
+
                 $vendors = Vendor::whereNotNull('latitude')
-                ->whereNotNull('longitude')
-                ->when($request->filled('city'), function ($q) use ($request) {
-                    $q->where('vendorcity', $request->city);
-                })
-                ->get();
-              
+                    ->whereNotNull('longitude')
+                    ->when($request->filled('city'), function ($q) use ($request) {
+                        $q->where('vendorcity', $request->city);
+                    })
+                    ->get();
+
                 if (!$vendors->isEmpty()) {
                     $client = new Client();
                     $url = "https://maps.googleapis.com/maps/api/distancematrix/json";
                     $origins = "$strUserLat,$strUserLong";
                     $destinations = $vendors->map(fn($vendor) => "{$vendor->latitude},{$vendor->longitude}")->implode('|');
-                    
+
                     $response = $client->get($url, [
                         'query' => [
                             'origins' => $origins,
@@ -1856,13 +1856,13 @@ class FrontApiController extends Controller
                             'departure_time' => 'now',
                         ]
                     ]);
-                   
-    
+
+
                     $distanceMatrix = json_decode($response->getBody()->getContents(), true);
-                     
+
                     if ($distanceMatrix['status'] === 'OK') {
                         $elements = $distanceMatrix['rows'][0]['elements'];
-    
+
                         foreach ($vendors as $index => $vendor) {
                             if (isset($elements[$index]['distance']['value'])) {
                                 $vendorDistanceMap[$vendor->vendor_id] = $elements[$index]['distance']['value']; // meters
@@ -1872,21 +1872,21 @@ class FrontApiController extends Controller
                     }
                 }
             }
-    
+
             // Get all deals
             $deals = $query->get();
-            
+
             // $deals = $query->tosql();
             //dd($deals->toArray());
-    
-    
+
+
             if ($deals->isEmpty()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No deals found',
                 ], 404);
             }
-    
+
             // Transform deals with discount and distance info
             $deals->transform(function ($deal) use ($vendorDistanceMap, $vendorTextMap) {
                 if ($deal->options) {
@@ -1900,19 +1900,19 @@ class FrontApiController extends Controller
                         return $option;
                     });
                 }
-    
+
                 $deal->average_rating = round($deal->average_rating, 1);
                 $deal->total_reviews = $deal->total_reviews;
-    
+
                 $deal->distance = $vendorDistanceMap[$deal->vendor_id] ?? null;
                 $deal->distance_text = $vendorTextMap[$deal->vendor_id] ?? null;
-    
+
                 return $deal;
             });
-    
+
             // Sort by distance ASC
             $deals = $deals->sortBy('distance')->values();
-    
+
             // Popular deals (optional city filter)
             $popularDeals = Deals::with(['options', 'images', 'vendor', 'reviews'])
                 ->withCount('reviews as total_reviews')
@@ -1924,7 +1924,7 @@ class FrontApiController extends Controller
                 ->latest()
                 ->take(5)
                 ->get();
-    
+
             return response()->json([
                 'success' => true,
                 'data' => $deals,
@@ -1938,7 +1938,7 @@ class FrontApiController extends Controller
         }
     }
 
-    
+
     public function FrontPromocodelist(Request $request)
     {
         try {
@@ -2010,7 +2010,7 @@ class FrontApiController extends Controller
     {
         try {
             // Fetch categories along with their subcategories
-            $categories = Categories::with('subcategories')->orderby('isequence','asc')->get();
+            $categories = Categories::with('subcategories')->orderby('isequence', 'asc')->get();
 
             $responseData = [];
             foreach ($categories as $category) {
