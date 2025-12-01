@@ -10,12 +10,12 @@ class OpenAIImageController extends Controller
 {
     public function generateImage(Request $request)
     {
+
         $request->validate([
             'prompt' => 'required|string|max:255',
         ]);
 
         $client = OpenAI::client(config('services.openai.api_key'));
-
         $response = $client->images()->create([
             'prompt' => $request->prompt,
             'n' => 1,

@@ -167,7 +167,8 @@ class FrontApiController extends Controller
         try {
             $categories = Categories::select(
                 "Categories_id",
-                "Category_name"
+                "Category_name",
+                "Categories_slug"
             )->orderby('isequence','asc')->get();
 
             return response()->json([
@@ -186,12 +187,13 @@ class FrontApiController extends Controller
     {
 
         $request->validate([
-            'Categories_id' => 'required|exists:Categories,Categories_id',
+            'CategorySlugname' => 'required',
         ]);
 
         try {
+            $category = Categories::where('Categories_slug',$request->CategorySlugname)->first();
             $subcategories = SubCategories::select('iSubCategoryId', 'strSubCategoryName')
-                ->where('iCategoryId', $request->Categories_id)
+                ->where('iCategoryId', $category->Categories_id)
                 ->get();
 
 
@@ -1758,6 +1760,8 @@ class FrontApiController extends Controller
             $query = Deals::with([
                 'options',
                 'images',
+                'category',
+                'subcategory',
                 'vendor' => function ($q) {
                     $q->select('vendor_id', 'vendoraddress', 'latitude', 'longitude', 'vendorcity', 'businessname','businessaddress');
                 },
@@ -1772,7 +1776,7 @@ class FrontApiController extends Controller
             ->where('Is_publish', 1);
     
             // Search filters
-            if ($request->filled('Title') || $request->filled('businessname') || $request->filled('deal_address') || $request->filled('category_id') || $request->filled('subcategory_id') ) {
+            if ($request->filled('Title') || $request->filled('businessname') || $request->filled('deal_address') || $request->filled('category_slug') || $request->filled('subcategory_slug') ) {
                 $query->where(function ($q) use ($request) {
                     if ($request->filled('Title')) {
                         $q->where('main_title', 'like', '%' . $request->Title . '%');
@@ -1785,12 +1789,28 @@ class FrontApiController extends Controller
                     if ($request->filled('deal_address')) {
                         $q->where('deal_address', 'like', '%' . $request->deal_address . '%');
                     }
-                    if ($request->category_id) {
-                        $q->where('deal_category_id', $request->category_id);
+                    
+                     // CATEGORY SLUG SEARCH
+                    if ($request->filled('category_slug')) {
+                        $q->orWhereHas('category', function ($q2) use ($request) {
+                            $q2->where('Categories_slug', $request->category_slug);
+                        });
                     }
-                    if ($request->subcategory_id) {
-                        $q->where('deal_sub_category_id', $request->subcategory_id);
+
+                    // SUBCATEGORY SLUG SEARCH
+                    if ($request->filled('subcategory_slug')) {
+                        $q->orWhereHas('subcategory', function ($q3) use ($request) {
+                            $q3->where('strSlugName', $request->subcategory_slug);
+                        });
                     }
+                    
+                    
+                    // if ($request->category_id) {
+                    //     $q->where('deal_category_id', $request->category_id);
+                    // }
+                    // if ($request->subcategory_id) {
+                    //     $q->where('deal_sub_category_id', $request->subcategory_id);
+                    // }
 
                 });
             }
@@ -2000,6 +2020,7 @@ class FrontApiController extends Controller
                     $subcategories[] = [
                         'Subcategory_id' => $subcategory->iSubCategoryId,
                         'Subcategory_name' => $subcategory->strSubCategoryName,
+                        'strSlugName' => $subcategory->strSlugName,
                         'Subcategory_icon' => $subcategory->subCategory_icon
                             ? url('upload/subcategory-icons/' . $subcategory->subCategory_icon)
                             : null,
@@ -2011,6 +2032,7 @@ class FrontApiController extends Controller
                     'Categories_id' => $category->Categories_id,
                     'Category_name' => $category->Category_name,
                     'Categories_icon' => $category->Categories_icon,
+                    'Categories_slug' => $category->Categories_slug,
                     'Subcategories' => $subcategories,
                 ];
             }
